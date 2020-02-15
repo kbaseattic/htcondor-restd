@@ -1,0 +1,577 @@
+swagger: "2.0"
+info:
+  title: HTCondor REST API
+  version: "0.200204"
+
+host: localhost:9680
+basePath: /v1
+schemes:
+  - http
+
+tags:
+  - name: jobs
+    description: Access to jobs, past and present
+  - name: status
+    description: Access to status of machines and daemons
+  - name: config
+    description: Access to config
+
+responses:
+  groupedJobsOK:
+    description: OK
+    schema:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          $ref: "#/definitions/job"
+  jobsOK:
+    description: OK
+    schema:
+      type: array
+      items:
+        $ref: "#/definitions/job"
+  oneJobOK:
+    description: OK
+    schema:
+      $ref: "#/definitions/job"
+  statusOK:
+    description: OK
+    schema:
+      type: array
+      items:
+        $ref: "#/definitions/status"
+
+definitions:
+  classad:
+    description: >-
+      A ClassAd object in the form of key/value pairs.
+      All attribute names are lowercased.
+    type: object
+    additionalProperties: true
+  job:
+    description: A single HTCondor job
+    type: object
+    properties:
+      jobid:
+        description: The `ClusterID.ProcID` of the job, such as `52.5`
+        type: string
+      classad:
+        $ref: "#/definitions/classad"
+    example:
+      jobid: "110.0"
+      classad:
+        owner: "matyas"
+        cmd: "/usr/bin/sleep"
+        requestcpus: 1
+  status:
+    description: A status query result
+    type: object
+    properties:
+      name:
+        description: >-
+          The name of the queried object, such as the slot name for
+          machine (startd) ads.
+        type: string
+      type:
+        description: >-
+          The type of the classad, such as `Machine` for a machine ad.
+        type: string
+      classad:
+        $ref: "#/definitions/classad"
+    example:
+      name: "slot1@siren.cs.wisc.edu"
+      type: "Machine"
+      classad:
+        cpus: 1
+        memory: 1813
+        state: "Unclaimed"
+  error:
+    type: object
+    properties:
+      message:
+        description: Text describing the error
+        type: string
+
+parameters:
+  schedd:
+    in: path
+    name: schedd
+    type: string
+    description: The schedd to query (or "DEFAULT" for the default schedd).
+    required: true
+  groupby:
+    in: path
+    name: groupby
+    type: string
+    description: The attribute to group results by.
+    required: true
+  projection:
+    in: query
+    name: projection
+    type: array
+    collectionFormat: csv
+    items:
+      type: string
+    description: Comma-separated list of classad attributes to return
+  constraint:
+    in: query
+    name: constraint
+    type: string
+    description: Classad expression to restrict the query
+  statusQuery:
+    in: query
+    name: query
+    type: string
+    description: >-
+      Type of classad to query. By default, this is `any`, i.e. all classads
+      in the collector.
+    enum:
+      - accounting
+      - any
+      - collector
+      - credd
+      - defrag
+      - generic
+      - grid
+      - had
+      - license
+      - master
+      - negotiator
+      - schedd
+      - startd
+      - submitter
+  configDaemon:
+    in: query
+    name: daemon
+    type: string
+    description: >-
+      Running daemon to query. If not specified, will query the config on disk.
+    enum:
+      - collector
+      - master
+      - negotiator
+      - schedd
+      - startd
+
+paths:
+  /jobs/{schedd}:
+    get:
+      summary: Returns information for all jobs in the queue for the given schedd.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - $ref: "#/parameters/projection"
+        - $ref: "#/parameters/constraint"
+      responses:
+        200:
+          $ref: "#/responses/jobsOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: Schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /jobs/{schedd}/{cluster}:
+    get:
+      summary: >-
+        Returns information for jobs in the given cluster in the queue
+        for the given schedd.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - in: path
+          name: cluster
+          type: integer
+          minimum: 0
+          description: The ClusterId of the jobs to return info for
+          required: true
+        - $ref: "#/parameters/projection"
+        - $ref: "#/parameters/constraint"
+      responses:
+        200:
+          $ref: "#/responses/jobsOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: Schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /jobs/{schedd}/{cluster}/{proc}:
+    get:
+      summary: >-
+        Returns information for a single job in the given cluster and proc in the queue
+        for the given schedd.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - in: path
+          name: cluster
+          type: integer
+          minimum: 0
+          description: The ClusterId of the job to return info for
+          required: true
+        - in: path
+          name: proc
+          type: integer
+          minimum: -1
+          description: The ProcId of the job to return info for
+          required: true
+        - $ref: "#/parameters/projection"
+      responses:
+        200:
+          $ref: "#/responses/oneJobOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: No matching jobs or schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /jobs/{schedd}/{cluster}/{proc}/{attr}:
+    get:
+      summary: >-
+        Returns a single attribute of the given job in the queue
+        for the given schedd.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - in: path
+          name: cluster
+          type: integer
+          minimum: 0
+          description: The ClusterId of the job to return info for
+          required: true
+        - in: path
+          name: proc
+          type: integer
+          minimum: -1
+          description: The ProcId of the job to return info for
+          required: true
+        - in: path
+          name: attr
+          type: string
+          description: The classad attribute to return
+          required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: No matching jobs, no matching attribute, or schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /history/{schedd}:
+    get:
+      summary: Returns information for all jobs in the job history for the given schedd.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - $ref: "#/parameters/projection"
+        - $ref: "#/parameters/constraint"
+      responses:
+        200:
+          $ref: "#/responses/jobsOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: Schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /history/{schedd}/{cluster}:
+    get:
+      summary: >-
+        Returns information for jobs in the given cluster in the job history
+        for the given schedd.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - in: path
+          name: cluster
+          type: integer
+          minimum: 0
+          description: The ClusterId of the jobs to return info for
+          required: true
+        - $ref: "#/parameters/projection"
+        - $ref: "#/parameters/constraint"
+      responses:
+        200:
+          $ref: "#/responses/jobsOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: Schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /history/{schedd}/{cluster}/{proc}:
+    get:
+      summary: >-
+        Returns information for a single job in the given cluster and proc
+        in the job history for the given schedd.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - in: path
+          name: cluster
+          type: integer
+          minimum: 0
+          description: The ClusterId of the job to return info for
+          required: true
+        - in: path
+          name: proc
+          type: integer
+          minimum: -1
+          description: The ProcId of the job to return info for
+          required: true
+        - $ref: "#/parameters/projection"
+      responses:
+        200:
+          $ref: "#/responses/oneJobOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: No matching jobs or schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /history/{schedd}/{cluster}/{proc}/{attr}:
+    get:
+      summary: >-
+        Returns a single attribute of the given job in the job history
+        for the given schedd.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - in: path
+          name: cluster
+          type: integer
+          minimum: 0
+          description: The ClusterId of the job to return info for
+          required: true
+        - in: path
+          name: proc
+          type: integer
+          minimum: -1
+          description: The ProcId of the job to return info for
+          required: true
+        - in: path
+          name: attr
+          type: string
+          description: The classad attribute to return
+          required: true
+      responses:
+        200:
+          description: OK
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: No matching jobs, no matching attribute, or schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /grouped_jobs/{schedd}/{groupby}:
+    get:
+      summary: Returns information for all jobs in the queue for the given schedd, grouped by the given attribute.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - $ref: "#/parameters/groupby"
+        - $ref: "#/parameters/projection"
+        - $ref: "#/parameters/constraint"
+      responses:
+        200:
+          $ref: "#/responses/groupedJobsOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: Schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /grouped_jobs/{schedd}/{groupby}{cluster}:
+    get:
+      summary: >-
+        Returns information for jobs in the given cluster in the queue
+        for the given schedd, grouped by the given attribute.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - $ref: "#/parameters/groupby"
+        - in: path
+          name: cluster
+          type: integer
+          minimum: 0
+          description: The ClusterId of the jobs to return info for
+          required: true
+        - $ref: "#/parameters/projection"
+        - $ref: "#/parameters/constraint"
+      responses:
+        200:
+          $ref: "#/responses/groupedJobsOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: Schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /grouped_history/{schedd}/{groupby}:
+    get:
+      summary: Returns information for all jobs in the history for the given schedd, grouped by the given attribute.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - $ref: "#/parameters/groupby"
+        - $ref: "#/parameters/projection"
+        - $ref: "#/parameters/constraint"
+      responses:
+        200:
+          $ref: "#/responses/groupedJobsOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: Schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /grouped_history/{schedd}/{groupby}{cluster}:
+    get:
+      summary: >-
+        Returns information for jobs in the given cluster in the history file
+        for the given schedd, grouped by the given attribute.
+      tags: [jobs]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/schedd"
+        - $ref: "#/parameters/groupby"
+        - in: path
+          name: cluster
+          type: integer
+          minimum: 0
+          description: The ClusterId of the jobs to return info for
+          required: true
+        - $ref: "#/parameters/projection"
+        - $ref: "#/parameters/constraint"
+      responses:
+        200:
+          $ref: "#/responses/groupedJobsOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: Schedd not found
+          schema:
+            $ref: "#/definitions/error"
+  /status:
+    get:
+      summary: Returns condor_status information
+      tags: [status]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/projection"
+        - $ref: "#/parameters/constraint"
+        - $ref: "#/parameters/statusQuery"
+      responses:
+        200:
+          $ref: "#/responses/statusOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+  /status/{name}:
+    get:
+      summary: Returns condor_status information for the ad with the given Name
+      tags: [status]
+      produces: ["application/json"]
+      parameters:
+        - in: path
+          name: name
+          type: string
+          minimum: 0
+          description: The Name of the associated ad
+          required: true
+        - $ref: "#/parameters/projection"
+        - $ref: "#/parameters/constraint"
+        - $ref: "#/parameters/statusQuery"
+      responses:
+        200:
+          $ref: "#/responses/statusOK"
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+  /config:
+    get:
+      summary: >-
+        Get all config attributes from either the file system or a running
+        daemon.
+      tags: [config]
+      produces: ["application/json"]
+      parameters:
+        - $ref: "#/parameters/configDaemon"
+      responses:
+        200:
+          description: OK
+          schema:
+            type: object
+            description: >-
+              All config attributes, with the keys lowercased
+            additionalProperties: true
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+  /config/{attr}:
+    get:
+      summary: >-
+        Get a specific config attribute from either the file system or a
+        running daemon.
+      tags: [config]
+      produces: ["application/json"]
+      parameters:
+        - in: path
+          name: attr
+          type: string
+          description: The config attribute to return
+          required: true
+        - $ref: "#/parameters/configDaemon"
+      responses:
+        200:
+          description: Value of the config attribute
+        400:
+          description: Invalid argument(s)
+          schema:
+            $ref: "#/definitions/error"
+        404:
+          description: Undefined config attribute
+          schema:
+            $ref: "#/definitions/error"
