@@ -3,21 +3,31 @@ import re
 import classad
 import htcondor
 import json
+import six
 
 try:
-    from typing import Dict, Any, Union, List
+    from typing import Dict, Any, Union, List, Tuple, Set
 except ImportError:
     pass
 
+from .errors import ScheddNotFound
+
 
 def get_schedd(pool=None, schedd_name=None):
-    if schedd_name:
-        collector = htcondor.Collector(pool)
-        return htcondor.Schedd(
-            collector.locate(htcondor.DaemonTypes.Schedd, schedd_name)
-        )
-    else:
-        return htcondor.Schedd()
+    try:
+        if schedd_name:
+            collector = htcondor.Collector(pool)
+            return htcondor.Schedd(
+                collector.locate(htcondor.DaemonTypes.Schedd, schedd_name)
+            )
+        else:
+            return htcondor.Schedd()
+    except RuntimeError as err:
+        if "unable to locate" in err.message.lower():
+            six.raise_from(ScheddNotFound, err)
+    except ValueError as err:
+        if "unable to find" in err.message.lower():
+            six.raise_from(ScheddNotFound, err)
 
 
 def deep_lcasekeys(in_value):
@@ -25,7 +35,7 @@ def deep_lcasekeys(in_value):
     in dictionaries are lowercased.
 
     """
-    if isinstance(in_value, dict):
+    if isinstance(in_value, (dict, htcondor._Param, htcondor.RemoteParam)):
         out_value = dict()
         for k, v in in_value.items():
             k = k.lower()
@@ -50,7 +60,12 @@ def validate_attribute(attribute):
 
 
 def validate_projection(projection):
-    """Return True if the given projection has a valid format, i.e.
-    is a comma-separated list of valid attribute names.
+    # type: (str) -> Tuple[bool, Set]
+    """Return True, set() if the given projection has a valid format, i.e.
+    is a comma-separated list of valid attribute names.  Return False,
+    and a set of the invalid attribute names if any are invalid.
     """
-    return all(validate_attribute(x) for x in projection.split(","))
+    bad_attributes = {
+        attr for attr in projection.split(",") if not validate_attribute(attr)
+    }
+    return not bool(bad_attributes), bad_attributes

@@ -1,4 +1,6 @@
 RELEASE NOTES
+* Added Flask Cors (https://flask-cors.readthedocs.io/en/latest/api.html#using-cors-with-cookies)
+* Added Group Endpoints
 
 * __version__ = "0.191001" + 1
 * Added authentication to check for the headers 'Authorization' or 'Authentication'
