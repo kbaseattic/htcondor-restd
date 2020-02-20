@@ -1,3 +1,0 @@
-flask
-flask-restful
-htcondor >= 8.9.2

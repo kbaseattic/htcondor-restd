@@ -1,0 +1,1404 @@
+{
+  "swagger" : "2.0",
+  "info" : {
+    "version" : "0.200219",
+    "title" : "HTCondor REST API"
+  },
+  "host" : "localhost:9680",
+  "basePath" : "/v1",
+  "tags" : [ {
+    "name" : "jobs",
+    "description" : "Access to jobs, past and present"
+  }, {
+    "name" : "status",
+    "description" : "Access to status of machines and daemons"
+  }, {
+    "name" : "config",
+    "description" : "Access to config"
+  } ],
+  "schemes" : [ "http" ],
+  "paths" : {
+    "/jobs/{schedd}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns information for all jobs in the queue for the given schedd.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/definitions/job"
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "Schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{schedd}/{cluster}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns information for jobs in the given cluster in the queue for the given schedd.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "description" : "The ClusterId of the jobs to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : 0
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/definitions/job"
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "Schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{schedd}/{cluster}/{proc}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns information for a single job in the given cluster and proc in the queue for the given schedd.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "description" : "The ClusterId of the job to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : 0
+        }, {
+          "name" : "proc",
+          "in" : "path",
+          "description" : "The ProcId of the job to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : -1
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "$ref" : "#/definitions/job"
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "No matching jobs or schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{schedd}/{cluster}/{proc}/{attr}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns a single attribute of the given job in the queue for the given schedd.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "description" : "The ClusterId of the job to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : 0
+        }, {
+          "name" : "proc",
+          "in" : "path",
+          "description" : "The ProcId of the job to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : -1
+        }, {
+          "name" : "attr",
+          "in" : "path",
+          "description" : "The classad attribute to return",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "No matching jobs, no matching attribute, or schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/history/{schedd}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns information for all jobs in the job history for the given schedd.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/definitions/job"
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "Schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/history/{schedd}/{cluster}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns information for jobs in the given cluster in the job history for the given schedd.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "description" : "The ClusterId of the jobs to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : 0
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/definitions/job"
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "Schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/history/{schedd}/{cluster}/{proc}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns information for a single job in the given cluster and proc in the job history for the given schedd.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "description" : "The ClusterId of the job to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : 0
+        }, {
+          "name" : "proc",
+          "in" : "path",
+          "description" : "The ProcId of the job to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : -1
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "$ref" : "#/definitions/job"
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "No matching jobs or schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/history/{schedd}/{cluster}/{proc}/{attr}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns a single attribute of the given job in the job history for the given schedd.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "description" : "The ClusterId of the job to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : 0
+        }, {
+          "name" : "proc",
+          "in" : "path",
+          "description" : "The ProcId of the job to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : -1
+        }, {
+          "name" : "attr",
+          "in" : "path",
+          "description" : "The classad attribute to return",
+          "required" : true,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK"
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "No matching jobs, no matching attribute, or schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/grouped_jobs/{schedd}/{groupby}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns information for all jobs in the queue for the given schedd, grouped by the given attribute.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "groupby",
+          "in" : "path",
+          "description" : "The attribute to group results by.",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/definitions/job"
+                }
+              }
+            },
+            "examples" : {
+              "application/json" : {
+                "matyas" : [ {
+                  "jobid" : "110.0",
+                  "classad" : {
+                    "owner" : "matyas",
+                    "cmd" : "/usr/bin/sleep"
+                  }
+                }, {
+                  "jobid" : "110.1",
+                  "classad" : {
+                    "owner" : "matyas",
+                    "cmd" : "/usr/bin/env"
+                  }
+                } ],
+                "greg" : [ {
+                  "jobid" : "100.0",
+                  "classad" : {
+                    "owner" : "greg",
+                    "cmd" : "/bin/bash"
+                  }
+                } ]
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "Schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/grouped_jobs/{schedd}/{groupby}{cluster}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns information for jobs in the given cluster in the queue for the given schedd, grouped by the given attribute.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "groupby",
+          "in" : "path",
+          "description" : "The attribute to group results by.",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "description" : "The ClusterId of the jobs to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : 0
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/definitions/job"
+                }
+              }
+            },
+            "examples" : {
+              "application/json" : {
+                "matyas" : [ {
+                  "jobid" : "110.0",
+                  "classad" : {
+                    "owner" : "matyas",
+                    "cmd" : "/usr/bin/sleep"
+                  }
+                }, {
+                  "jobid" : "110.1",
+                  "classad" : {
+                    "owner" : "matyas",
+                    "cmd" : "/usr/bin/env"
+                  }
+                } ],
+                "greg" : [ {
+                  "jobid" : "100.0",
+                  "classad" : {
+                    "owner" : "greg",
+                    "cmd" : "/bin/bash"
+                  }
+                } ]
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "Schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/grouped_history/{schedd}/{groupby}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns information for all jobs in the history for the given schedd, grouped by the given attribute.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "groupby",
+          "in" : "path",
+          "description" : "The attribute to group results by.",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/definitions/job"
+                }
+              }
+            },
+            "examples" : {
+              "application/json" : {
+                "matyas" : [ {
+                  "jobid" : "110.0",
+                  "classad" : {
+                    "owner" : "matyas",
+                    "cmd" : "/usr/bin/sleep"
+                  }
+                }, {
+                  "jobid" : "110.1",
+                  "classad" : {
+                    "owner" : "matyas",
+                    "cmd" : "/usr/bin/env"
+                  }
+                } ],
+                "greg" : [ {
+                  "jobid" : "100.0",
+                  "classad" : {
+                    "owner" : "greg",
+                    "cmd" : "/bin/bash"
+                  }
+                } ]
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "Schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/grouped_history/{schedd}/{groupby}{cluster}" : {
+      "get" : {
+        "tags" : [ "jobs" ],
+        "summary" : "Returns information for jobs in the given cluster in the history file for the given schedd, grouped by the given attribute.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "schedd",
+          "in" : "path",
+          "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "groupby",
+          "in" : "path",
+          "description" : "The attribute to group results by.",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "cluster",
+          "in" : "path",
+          "description" : "The ClusterId of the jobs to return info for",
+          "required" : true,
+          "type" : "integer",
+          "minimum" : 0
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/definitions/job"
+                }
+              }
+            },
+            "examples" : {
+              "application/json" : {
+                "matyas" : [ {
+                  "jobid" : "110.0",
+                  "classad" : {
+                    "owner" : "matyas",
+                    "cmd" : "/usr/bin/sleep"
+                  }
+                }, {
+                  "jobid" : "110.1",
+                  "classad" : {
+                    "owner" : "matyas",
+                    "cmd" : "/usr/bin/env"
+                  }
+                } ],
+                "greg" : [ {
+                  "jobid" : "100.0",
+                  "classad" : {
+                    "owner" : "greg",
+                    "cmd" : "/bin/bash"
+                  }
+                } ]
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "Schedd not found",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/status" : {
+      "get" : {
+        "tags" : [ "status" ],
+        "summary" : "Returns condor_status information",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "query",
+          "in" : "query",
+          "description" : "Type of classad to query. By default, this is `any`, i.e. all classads in the collector.",
+          "required" : false,
+          "type" : "string",
+          "enum" : [ "accounting", "any", "collector", "credd", "defrag", "generic", "grid", "had", "license", "master", "negotiator", "schedd", "startd", "submitter" ]
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/definitions/status"
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/status/{name}" : {
+      "get" : {
+        "tags" : [ "status" ],
+        "summary" : "Returns condor_status information for the ad with the given Name",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "name",
+          "in" : "path",
+          "description" : "The Name of the associated ad",
+          "required" : true,
+          "type" : "string",
+          "minimum" : 0
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "query",
+          "in" : "query",
+          "description" : "Type of classad to query. By default, this is `any`, i.e. all classads in the collector.",
+          "required" : false,
+          "type" : "string",
+          "enum" : [ "accounting", "any", "collector", "credd", "defrag", "generic", "grid", "had", "license", "master", "negotiator", "schedd", "startd", "submitter" ]
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "array",
+              "items" : {
+                "$ref" : "#/definitions/status"
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/grouped_status/{groupby}" : {
+      "get" : {
+        "tags" : [ "status" ],
+        "summary" : "Returns condor_status information, grouped by the given attribute",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "groupby",
+          "in" : "path",
+          "description" : "The attribute to group results by.",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "query",
+          "in" : "query",
+          "description" : "Type of classad to query. By default, this is `any`, i.e. all classads in the collector.",
+          "required" : false,
+          "type" : "string",
+          "enum" : [ "accounting", "any", "collector", "credd", "defrag", "generic", "grid", "had", "license", "master", "negotiator", "schedd", "startd", "submitter" ]
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/definitions/status"
+                }
+              }
+            },
+            "examples" : {
+              "application/json" : {
+                "Machine" : [ {
+                  "name" : "slot1@siren.cs.wisc.edu",
+                  "type" : "Machine",
+                  "classad" : {
+                    "cpus" : 1,
+                    "memory" : 1813,
+                    "state" : "Unclaimed"
+                  }
+                }, {
+                  "name" : "slot2@siren.cs.wisc.edu",
+                  "type" : "Machine",
+                  "classad" : {
+                    "cpus" : 1,
+                    "memory" : 1813,
+                    "state" : "Unclaimed"
+                  }
+                } ],
+                "DaemonMaster" : [ {
+                  "name" : "siren.cs.wisc.edu",
+                  "type" : "DaemonMaster",
+                  "classad" : {
+                    "daemonstarttime" : 1581950930,
+                    "detectedcpus" : 4
+                  }
+                } ]
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/grouped_status/{groupby}/{name}" : {
+      "get" : {
+        "tags" : [ "status" ],
+        "summary" : "Returns condor_status information, grouped by the given attribute, for the classad with the given name",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "groupby",
+          "in" : "path",
+          "description" : "The attribute to group results by.",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "name",
+          "in" : "path",
+          "description" : "The Name of the associated ad",
+          "required" : true,
+          "type" : "string",
+          "minimum" : 0
+        }, {
+          "name" : "projection",
+          "in" : "query",
+          "description" : "Comma-separated list of classad attributes to return",
+          "required" : false,
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          },
+          "collectionFormat" : "csv"
+        }, {
+          "name" : "constraint",
+          "in" : "query",
+          "description" : "Classad expression to restrict the query",
+          "required" : false,
+          "type" : "string"
+        }, {
+          "name" : "query",
+          "in" : "query",
+          "description" : "Type of classad to query. By default, this is `any`, i.e. all classads in the collector.",
+          "required" : false,
+          "type" : "string",
+          "enum" : [ "accounting", "any", "collector", "credd", "defrag", "generic", "grid", "had", "license", "master", "negotiator", "schedd", "startd", "submitter" ]
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "object",
+              "additionalProperties" : {
+                "type" : "array",
+                "items" : {
+                  "$ref" : "#/definitions/status"
+                }
+              }
+            },
+            "examples" : {
+              "application/json" : {
+                "Machine" : [ {
+                  "name" : "slot1@siren.cs.wisc.edu",
+                  "type" : "Machine",
+                  "classad" : {
+                    "cpus" : 1,
+                    "memory" : 1813,
+                    "state" : "Unclaimed"
+                  }
+                }, {
+                  "name" : "slot2@siren.cs.wisc.edu",
+                  "type" : "Machine",
+                  "classad" : {
+                    "cpus" : 1,
+                    "memory" : 1813,
+                    "state" : "Unclaimed"
+                  }
+                } ],
+                "DaemonMaster" : [ {
+                  "name" : "siren.cs.wisc.edu",
+                  "type" : "DaemonMaster",
+                  "classad" : {
+                    "daemonstarttime" : 1581950930,
+                    "detectedcpus" : 4
+                  }
+                } ]
+              }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/config" : {
+      "get" : {
+        "tags" : [ "config" ],
+        "summary" : "Get all config attributes from either the file system or a running daemon.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "daemon",
+          "in" : "query",
+          "description" : "Running daemon to query. If not specified, will query the config on disk.",
+          "required" : false,
+          "type" : "string",
+          "enum" : [ "collector", "master", "negotiator", "schedd", "startd" ]
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "OK",
+            "schema" : {
+              "type" : "object",
+              "description" : "All config attributes, with the keys lowercased",
+              "properties" : { }
+            }
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    },
+    "/config/{attr}" : {
+      "get" : {
+        "tags" : [ "config" ],
+        "summary" : "Get a specific config attribute from either the file system or a running daemon.",
+        "produces" : [ "application/json" ],
+        "parameters" : [ {
+          "name" : "attr",
+          "in" : "path",
+          "description" : "The config attribute to return",
+          "required" : true,
+          "type" : "string"
+        }, {
+          "name" : "daemon",
+          "in" : "query",
+          "description" : "Running daemon to query. If not specified, will query the config on disk.",
+          "required" : false,
+          "type" : "string",
+          "enum" : [ "collector", "master", "negotiator", "schedd", "startd" ]
+        } ],
+        "responses" : {
+          "200" : {
+            "description" : "Value of the config attribute"
+          },
+          "400" : {
+            "description" : "Invalid argument(s)",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          },
+          "404" : {
+            "description" : "Undefined config attribute",
+            "schema" : {
+              "$ref" : "#/definitions/error"
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions" : {
+    "classad" : {
+      "type" : "object",
+      "description" : "A ClassAd object in the form of key/value pairs. All attribute names are lowercased.",
+      "example" : {
+        "owner" : "matyas",
+        "cmd" : "/usr/bin/sleep",
+        "clusterid" : "110",
+        "procid" : "0"
+      }
+    },
+    "job" : {
+      "type" : "object",
+      "properties" : {
+        "jobid" : {
+          "type" : "string",
+          "description" : "The `ClusterID.ProcID` of the job, such as `52.5`"
+        },
+        "classad" : {
+          "$ref" : "#/definitions/classad"
+        }
+      },
+      "description" : "A single HTCondor job",
+      "example" : {
+        "jobid" : "110.0",
+        "classad" : {
+          "owner" : "matyas",
+          "cmd" : "/usr/bin/sleep",
+          "requestcpus" : 1
+        }
+      }
+    },
+    "status" : {
+      "type" : "object",
+      "properties" : {
+        "name" : {
+          "type" : "string",
+          "description" : "The name of the queried object, such as the slot name for machine (startd) ads."
+        },
+        "type" : {
+          "type" : "string",
+          "description" : "The type of the classad, such as `Machine` for a machine ad."
+        },
+        "classad" : {
+          "$ref" : "#/definitions/classad"
+        }
+      },
+      "description" : "A status query result",
+      "example" : {
+        "name" : "slot1@siren.cs.wisc.edu",
+        "type" : "Machine",
+        "classad" : {
+          "cpus" : 1,
+          "memory" : 1813,
+          "state" : "Unclaimed"
+        }
+      }
+    },
+    "error" : {
+      "type" : "object",
+      "properties" : {
+        "message" : {
+          "type" : "string",
+          "description" : "Text describing the error"
+        }
+      }
+    }
+  },
+  "parameters" : {
+    "schedd" : {
+      "name" : "schedd",
+      "in" : "path",
+      "description" : "The schedd to query (or \"DEFAULT\" for the default schedd).",
+      "required" : true,
+      "type" : "string"
+    },
+    "groupby" : {
+      "name" : "groupby",
+      "in" : "path",
+      "description" : "The attribute to group results by.",
+      "required" : true,
+      "type" : "string"
+    },
+    "name" : {
+      "name" : "name",
+      "in" : "path",
+      "description" : "The Name of the associated ad",
+      "required" : true,
+      "type" : "string",
+      "minimum" : 0
+    },
+    "projection" : {
+      "name" : "projection",
+      "in" : "query",
+      "description" : "Comma-separated list of classad attributes to return",
+      "required" : false,
+      "type" : "array",
+      "items" : {
+        "type" : "string"
+      },
+      "collectionFormat" : "csv"
+    },
+    "constraint" : {
+      "name" : "constraint",
+      "in" : "query",
+      "description" : "Classad expression to restrict the query",
+      "required" : false,
+      "type" : "string"
+    },
+    "statusQuery" : {
+      "name" : "query",
+      "in" : "query",
+      "description" : "Type of classad to query. By default, this is `any`, i.e. all classads in the collector.",
+      "required" : false,
+      "type" : "string",
+      "enum" : [ "accounting", "any", "collector", "credd", "defrag", "generic", "grid", "had", "license", "master", "negotiator", "schedd", "startd", "submitter" ]
+    },
+    "configDaemon" : {
+      "name" : "daemon",
+      "in" : "query",
+      "description" : "Running daemon to query. If not specified, will query the config on disk.",
+      "required" : false,
+      "type" : "string",
+      "enum" : [ "collector", "master", "negotiator", "schedd", "startd" ]
+    }
+  },
+  "responses" : {
+    "groupedJobsOK" : {
+      "description" : "OK",
+      "schema" : {
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/job"
+          }
+        }
+      },
+      "examples" : {
+        "application/json" : {
+          "matyas" : [ {
+            "jobid" : "110.0",
+            "classad" : {
+              "owner" : "matyas",
+              "cmd" : "/usr/bin/sleep"
+            }
+          }, {
+            "jobid" : "110.1",
+            "classad" : {
+              "owner" : "matyas",
+              "cmd" : "/usr/bin/env"
+            }
+          } ],
+          "greg" : [ {
+            "jobid" : "100.0",
+            "classad" : {
+              "owner" : "greg",
+              "cmd" : "/bin/bash"
+            }
+          } ]
+        }
+      }
+    },
+    "groupedStatusOK" : {
+      "description" : "OK",
+      "schema" : {
+        "type" : "object",
+        "additionalProperties" : {
+          "type" : "array",
+          "items" : {
+            "$ref" : "#/definitions/status"
+          }
+        }
+      },
+      "examples" : {
+        "application/json" : {
+          "Machine" : [ {
+            "name" : "slot1@siren.cs.wisc.edu",
+            "type" : "Machine",
+            "classad" : {
+              "cpus" : 1,
+              "memory" : 1813,
+              "state" : "Unclaimed"
+            }
+          }, {
+            "name" : "slot2@siren.cs.wisc.edu",
+            "type" : "Machine",
+            "classad" : {
+              "cpus" : 1,
+              "memory" : 1813,
+              "state" : "Unclaimed"
+            }
+          } ],
+          "DaemonMaster" : [ {
+            "name" : "siren.cs.wisc.edu",
+            "type" : "DaemonMaster",
+            "classad" : {
+              "daemonstarttime" : 1581950930,
+              "detectedcpus" : 4
+            }
+          } ]
+        }
+      }
+    },
+    "jobsOK" : {
+      "description" : "OK",
+      "schema" : {
+        "type" : "array",
+        "items" : {
+          "$ref" : "#/definitions/job"
+        }
+      }
+    },
+    "oneJobOK" : {
+      "description" : "OK",
+      "schema" : {
+        "$ref" : "#/definitions/job"
+      }
+    },
+    "statusOK" : {
+      "description" : "OK",
+      "schema" : {
+        "type" : "array",
+        "items" : {
+          "$ref" : "#/definitions/status"
+        }
+      }
+    }
+  }
+}

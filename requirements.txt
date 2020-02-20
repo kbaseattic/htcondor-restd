@@ -1,3 +1,6 @@
+flask-swagger-ui
 flask
 flask-restful
+flask-cors
+gevent
 htcondor >= 8.9.2

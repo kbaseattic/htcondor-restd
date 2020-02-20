@@ -1,6 +1,23 @@
-from installed_clients.execution_engine2Client import execution_engine2
-from flask_restful import Resource, reqparse, abort
+import logging
 import os
+from functools import wraps
+
+from flask_restful import reqparse
+
+from installed_clients.execution_engine2Client import execution_engine2
+
+
+def allowed_access_wrapper(func):
+    @wraps(func)
+    def wrapper_auth(*args, **kwargs):
+        aa = allowed_access()
+        is_admin = aa.get('is_admin', False)
+        logging.error(aa)
+        logging.info(aa)
+        return (aa, is_admin)
+
+    return wrapper_auth
+
 
 def allowed_access():
     """
