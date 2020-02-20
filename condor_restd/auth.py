@@ -8,8 +8,15 @@ from installed_clients.execution_engine2Client import execution_engine2
 
 
 def allowed_access_wrapper(func):
+
+    aa = {}
+    is_admin = False
+
     @wraps(func)
     def wrapper_auth(*args, **kwargs):
+        nonlocal aa
+        nonlocal is_admin
+        abc = '123'
         aa = allowed_access()
         is_admin = aa.get('is_admin', False)
         logging.error(aa)

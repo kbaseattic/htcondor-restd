@@ -15,7 +15,7 @@ from classad import ClassAd
 
 from .errors import BAD_GROUPBY, BAD_PROJECTION, FAIL_QUERY, NO_CLASSADS
 from . import utils
-
+from .auth import allowed_access
 
 AD_TYPES_MAP = {
     "accounting": AdTypes.Accounting,
@@ -43,6 +43,11 @@ class V1StatusResource(Resource):
 
     def get(self, name=None):
         """GET handler"""
+        aa = allowed_access()
+        is_admin = aa.get('is_admin', False)
+        if is_admin is not True:
+            return aa
+
         parser = reqparse.RequestParser(trim=True)
         parser.add_argument("projection", default="")
         parser.add_argument("constraint", default="")
@@ -111,6 +116,11 @@ class V1GroupedStatusResource(Resource):
 
         Return multiple resources grouped by `groupby`.
         """
+        aa = allowed_access()
+        is_admin = aa.get('is_admin', False)
+        if is_admin is not True:
+            return aa
+
         parser = reqparse.RequestParser(trim=True)
         parser.add_argument("projection", default="")
         parser.add_argument("constraint", default="")

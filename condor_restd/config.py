@@ -9,7 +9,7 @@ import htcondor
 
 from .errors import BAD_ATTRIBUTE, FAIL_QUERY, NO_ATTRIBUTE
 from . import utils
-
+from .auth import allowed_access
 
 class V1ConfigResource(Resource):
     """Endpoints for accessing condor config; implements the /v1/config
@@ -26,10 +26,16 @@ class V1ConfigResource(Resource):
     }
 
     def get(self, attribute=None):
+
         """GET handler"""
         parser = reqparse.RequestParser(trim=True)
         parser.add_argument("daemon", choices=list(self.DAEMON_TYPES_MAP.keys()))
         args = parser.parse_args()
+
+        aa = allowed_access()
+        is_admin = aa.get('is_admin', False)
+        if is_admin is not True:
+            return aa
 
         param = None
         if args.daemon:

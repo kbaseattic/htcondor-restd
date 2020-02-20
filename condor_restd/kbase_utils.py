@@ -1,3 +1,6 @@
+import re
+
+
 def filter_classads(classads):
     """
     Remove attributes that you do not want the service to expose
@@ -7,6 +10,9 @@ def filter_classads(classads):
     """
     # redacted = ['environment','env']
     for i, item in enumerate(classads):
-        classads[i]['classad']['environment'] = 'redacted'
-        classads[i]['classad']['env'] = 'redacted'
+        env = classads[i]['classad']['environment']
+        env = re.sub(r'KB_AUTH_TOKEN=\w+\s?', 'KB_AUTH_TOKEN=Removed ', env)
+        env = re.sub(r'KB_ADMIN_AUTH_TOKEN=\w+\s?', 'KB_ADMIN_AUTH_TOKEN=Removed ', env)
+        classads[i]['classad']['environment'] = env
+
     return classads

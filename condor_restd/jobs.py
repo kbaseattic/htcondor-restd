@@ -12,6 +12,7 @@ except ImportError:
 import six
 
 from flask_restful import Resource, abort, reqparse
+
 import classad
 
 from .errors import (
@@ -24,7 +25,8 @@ from .errors import (
     ScheddNotFound,
 )
 from . import utils
-
+from .auth import allowed_access
+from .kbase_utils import filter_classads
 
 def _query_common(querytype, schedd_name, constraint, projection):
     # type: (str, Optional[str], str, Optional[str]) -> List[Dict]
@@ -148,6 +150,13 @@ class JobsBaseResource(Resource):
         parser.add_argument("projection", default="")
         parser.add_argument("constraint", default="true")
         args = parser.parse_args()
+
+        aa = allowed_access()
+        is_admin = aa.get('is_admin',False)
+        if is_admin is not True:
+            return aa
+
+
         try:
             schedd = six.ensure_str(schedd, errors="replace")
             projection = six.ensure_str(args.projection, errors="replace")
@@ -162,12 +171,12 @@ class JobsBaseResource(Resource):
                 attribute = six.ensure_str(attribute, errors="replace")
             except UnicodeError as err:
                 abort(400, message=str(err))
-            return self.query_attribute(schedd, clusterid, procid, attribute)
+            return filter_classads(self.query_attribute(schedd, clusterid, procid, attribute))
         if procid is not None:
-            return self.query_single(schedd, clusterid, procid, projection=projection)
-        return self.query_multi(
+            return filter_classads(self.query_single(schedd, clusterid, procid, projection=projection))
+        return filter_classads(self.query_multi(
             schedd, clusterid, constraint=constraint, projection=projection
-        )
+        ))
 
 
 class V1JobsResource(JobsBaseResource):
@@ -237,6 +246,13 @@ class GroupedJobsBaseResource(Resource):
         parser.add_argument("projection", default="")
         parser.add_argument("constraint", default="true")
         args = parser.parse_args()
+
+        aa = allowed_access()
+        is_admin = aa.get('is_admin',False)
+        if is_admin is not True:
+            return aa
+
+
         try:
             schedd = six.ensure_str(schedd, errors="replace")
             groupby = six.ensure_str(groupby, errors="replace")
@@ -247,9 +263,9 @@ class GroupedJobsBaseResource(Resource):
             return  # quiet warning
         if schedd == "DEFAULT":
             schedd = None
-        return self.grouped_query_multi(
+        return filter_classads(self.grouped_query_multi(
             schedd, groupby, clusterid, constraint=constraint, projection=projection
-        )
+        ))
 
 
 class V1GroupedJobsResource(GroupedJobsBaseResource):
