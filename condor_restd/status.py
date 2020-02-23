@@ -46,7 +46,8 @@ class V1StatusResource(Resource):
         aa = allowed_access()
         is_admin = aa.get('is_admin', False)
         if is_admin is not True:
-            return aa
+            abort(403, message=aa)
+
 
         parser = reqparse.RequestParser(trim=True)
         parser.add_argument("projection", default="")
@@ -119,7 +120,7 @@ class V1GroupedStatusResource(Resource):
         aa = allowed_access()
         is_admin = aa.get('is_admin', False)
         if is_admin is not True:
-            return aa
+            abort(403, message=aa)
 
         parser = reqparse.RequestParser(trim=True)
         parser.add_argument("projection", default="")

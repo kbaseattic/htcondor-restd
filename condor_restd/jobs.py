@@ -154,7 +154,8 @@ class JobsBaseResource(Resource):
         aa = allowed_access()
         is_admin = aa.get('is_admin',False)
         if is_admin is not True:
-            return aa
+            abort(403, message=aa)
+
 
 
         try:
@@ -250,7 +251,7 @@ class GroupedJobsBaseResource(Resource):
         aa = allowed_access()
         is_admin = aa.get('is_admin',False)
         if is_admin is not True:
-            return aa
+            abort(403, message=aa)
 
 
         try:

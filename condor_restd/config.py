@@ -1,15 +1,14 @@
 from __future__ import absolute_import
 
-from flask_restful import Resource, reqparse, abort
+import htcondor
 import six
-
+from flask_restful import Resource, reqparse, abort
 from htcondor import DaemonTypes, Collector, RemoteParam
 
-import htcondor
-
-from .errors import BAD_ATTRIBUTE, FAIL_QUERY, NO_ATTRIBUTE
 from . import utils
 from .auth import allowed_access
+from .errors import BAD_ATTRIBUTE, FAIL_QUERY, NO_ATTRIBUTE
+
 
 class V1ConfigResource(Resource):
     """Endpoints for accessing condor config; implements the /v1/config
@@ -35,7 +34,7 @@ class V1ConfigResource(Resource):
         aa = allowed_access()
         is_admin = aa.get('is_admin', False)
         if is_admin is not True:
-            return aa
+            abort(403, message=aa)
 
         param = None
         if args.daemon:

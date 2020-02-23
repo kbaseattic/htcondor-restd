@@ -31,7 +31,7 @@ from .status import V1StatusResource, V1GroupedStatusResource
 
 
 app = Flask(__name__)
-CORS(app)
+CORS(app,supports_credentials=True)
 
 ### swagger specific ###
 @app.route('/static/<filename>')
