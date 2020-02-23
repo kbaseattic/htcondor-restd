@@ -58,7 +58,7 @@ def allowed_access():
                     return {'is_admin': False,
                             'error': "Programming error. Somehow you are an admin, but don't have R|W",
                             'url': url, 'token': token,
-                            'exception': f"{e}", 'permission': permission}
+                            'permission': permission}
 
                 return {'is_admin': True, 'permission': permission}
             else:

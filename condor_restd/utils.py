@@ -23,11 +23,9 @@ def get_schedd(pool=None, schedd_name=None):
         else:
             return htcondor.Schedd()
     except RuntimeError as err:
-        if "unable to locate" in err.message.lower():
-            six.raise_from(ScheddNotFound, err)
+        six.raise_from(ScheddNotFound, err)
     except ValueError as err:
-        if "unable to find" in err.message.lower():
-            six.raise_from(ScheddNotFound, err)
+        six.raise_from(ScheddNotFound, err)
 
 
 def deep_lcasekeys(in_value):
