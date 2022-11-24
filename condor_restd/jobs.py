@@ -1,7 +1,9 @@
 from __future__ import absolute_import
 
+from collections import defaultdict
+
 try:
-    from typing import Dict, List, Union
+    from typing import Dict, List, Optional, Union
 
     Scalar = Union[None, bool, int, float, str]
 except ImportError:
@@ -11,8 +13,71 @@ import six
 
 from flask_restful import Resource, abort, reqparse
 
-from .errors import BAD_ATTRIBUTE_OR_PROJECTION, FAIL_QUERY, NO_JOBS, NO_ATTRIBUTE
+import classad
+
+from .errors import (
+    BAD_ATTRIBUTE,
+    BAD_PROJECTION,
+    BAD_GROUPBY,
+    FAIL_QUERY,
+    NO_JOBS,
+    NO_ATTRIBUTE,
+    ScheddNotFound,
+)
 from . import utils
+from .auth import allowed_access
+from .kbase_utils import filter_classads
+
+def _query_common(querytype, schedd_name, constraint, projection):
+    # type: (str, Optional[str], str, Optional[str]) -> List[Dict]
+    """Return the result of a schedd or history file query with a
+    constraint (classad expression) and a projection (comma-separated
+    attributes), as a list of dicts.
+
+    Handles getting the schedd, validating args, calling the query, and
+    transforming the classads into plain dicts (which can be serialized).
+
+    Aborts with a 400 if the args are bad, and a 503 if the query failed.
+
+    """
+    try:
+        schedd = utils.get_schedd(schedd_name=schedd_name)
+    except ScheddNotFound:
+        abort(400, message="Schedd not found: %s" % schedd_name)
+        raise  # quiet warning
+    except IOError as err:
+        abort(503, message=FAIL_QUERY % {"service": "collector", "err": err})
+        raise  # quiet warning
+
+    projection_list = []  # type: List[str]
+    if projection:
+        valid, badattrs = utils.validate_projection(projection)
+        if not valid:
+            abort(400, message="%s: %s" % (BAD_PROJECTION, ", ".join(badattrs)))
+        # We always need to get clusterid and procid even if the user doesn't
+        # ask for it, so we can construct jobid
+        projection_list = list(
+            set(["clusterid", "procid"] + projection.lower().split(","))
+        )
+
+    if querytype == "history":
+        method = schedd.history
+        service = "history file"
+    elif querytype == "xquery":
+        method = schedd.xquery
+        service = "schedd"
+    else:
+        assert False, "Invalid querytype %r" % querytype
+
+    try:
+        classads = method(
+            requirements=constraint, projection=projection_list
+        )  # type: List[classad.ClassAd]
+        return utils.classads_to_dicts(classads)
+    except SyntaxError as err:
+        abort(400, message=str(err))
+    except (IOError, RuntimeError) as err:
+        abort(503, message=FAIL_QUERY % {"service": service, "err": err})
 
 
 class JobsBaseResource(Resource):
@@ -21,57 +86,17 @@ class JobsBaseResource(Resource):
 
     """
 
-    querytype = None
+    querytype = ""
 
-    def _query_common(self, constraint, projection):
-        # type: (str, str) -> List[Dict]
-        """Return the result of a schedd or history file query with a
-        constraint (classad expression) and a projection (comma-separated
-        attributes), as a list of dicts.
-
-        Handles getting the schedd, validating args, calling the query, and
-        transforming the classads into plain dicts (which can be serialized).
-
-        Aborts with a 400 if the args are bad, and a 503 if the query failed.
-
-        """
-        schedd = utils.get_schedd()
-        projection_list = []
-        if projection:
-            if not utils.validate_projection(projection):
-                abort(400, message=BAD_ATTRIBUTE_OR_PROJECTION)
-            # We always need to get clusterid and procid even if the user doesn't
-            # ask for it, so we can construct jobid
-            projection_list = list(
-                set(["clusterid", "procid"] + projection.lower().split(","))
-            )
-
-        if self.querytype == "history":
-            method = schedd.history
-            service = "history file"
-        elif self.querytype == "xquery":
-            method = schedd.xquery
-            service = "schedd"
-        else:
-            assert False, "Invalid querytype %r" % self.querytype
-
-        try:
-            classads = method(requirements=constraint, projection=projection_list)
-            return utils.classads_to_dicts(classads)
-        except SyntaxError as err:
-            abort(400, message=str(err))
-        except (IOError, RuntimeError) as err:
-            abort(503, message=FAIL_QUERY % {"service": service, "err": err})
-
-    def query_multi(self, clusterid=None, constraint="true", projection=None):
-        # type: (int, str, str) -> List[Dict]
+    def query_multi(self, schedd, clusterid=None, constraint="true", projection=None):
+        # type: (Optional[str], int, str, str) -> List[Dict]
         """Return multiple jobs, optionally constraining by `clusterid` in
         addition to `constraint`.
 
         """
         if clusterid is not None:
             constraint += " && clusterid==%d" % clusterid
-        ad_dicts = self._query_common(constraint, projection)
+        ad_dicts = _query_common(self.querytype, schedd, constraint, projection)
 
         projection_list = projection.lower().split(",") if projection else None
         data = []
@@ -86,11 +111,14 @@ class JobsBaseResource(Resource):
 
         return data
 
-    def query_single(self, clusterid, procid, projection=None):
-        # type: (int, int, str) -> Dict
+    def query_single(self, schedd, clusterid, procid, projection=None):
+        # type: (Optional[str], int, int, str) -> Dict
         """Return a single job."""
-        ad_dicts = self._query_common(
-            "clusterid==%d && procid==%d" % (clusterid, procid), projection
+        ad_dicts = _query_common(
+            self.querytype,
+            schedd,
+            "clusterid==%d && procid==%d" % (clusterid, procid),
+            projection,
         )
         if ad_dicts:
             ad = ad_dicts[0]
@@ -105,10 +133,10 @@ class JobsBaseResource(Resource):
         else:
             abort(404, message=NO_JOBS)
 
-    def query_attribute(self, clusterid, procid, attribute):
-        # type: (int, int, str) -> Scalar
+    def query_attribute(self, schedd, clusterid, procid, attribute):
+        # type: (Optional[str], int, int, str) -> Scalar
         """Return a single attribute."""
-        q = self.query_single(clusterid, procid, projection=attribute)
+        q = self.query_single(schedd, clusterid, procid, projection=attribute)
         if not q:
             abort(404, message=NO_JOBS)
         l_attribute = attribute.lower()
@@ -117,28 +145,38 @@ class JobsBaseResource(Resource):
         else:
             abort(404, message=NO_ATTRIBUTE)
 
-    def get(self, clusterid=None, procid=None, attribute=None):
+    def get(self, schedd, clusterid=None, procid=None, attribute=None):
         parser = reqparse.RequestParser(trim=True)
         parser.add_argument("projection", default="")
         parser.add_argument("constraint", default="true")
         args = parser.parse_args()
+
+        aa = allowed_access()
+        is_admin = aa.get('is_admin',False)
+        if is_admin is not True:
+            return aa
+
+
         try:
-            projection = six.ensure_str(args.projection)
-            constraint = six.ensure_str(args.constraint)
+            schedd = six.ensure_str(schedd, errors="replace")
+            projection = six.ensure_str(args.projection, errors="replace")
+            constraint = six.ensure_str(args.constraint, errors="replace")
         except UnicodeError as err:
             abort(400, message=str(err))
             return  # quiet warning
+        if schedd == "DEFAULT":
+            schedd = None
         if attribute:
             try:
-                attribute = six.ensure_str(attribute)
+                attribute = six.ensure_str(attribute, errors="replace")
             except UnicodeError as err:
                 abort(400, message=str(err))
-            return self.query_attribute(clusterid, procid, attribute)
+            return filter_classads(self.query_attribute(schedd, clusterid, procid, attribute))
         if procid is not None:
-            return self.query_single(clusterid, procid, projection=projection)
-        return self.query_multi(
-            clusterid, constraint=constraint, projection=projection
-        )
+            return filter_classads(self.query_single(schedd, clusterid, procid, projection=projection))
+        return filter_classads(self.query_multi(
+            schedd, clusterid, constraint=constraint, projection=projection
+        ))
 
 
 class V1JobsResource(JobsBaseResource):
@@ -153,6 +191,95 @@ class V1JobsResource(JobsBaseResource):
 class V1HistoryResource(JobsBaseResource):
     """Endpoints for accessing historical job information; implements the
     /v1/history endpoints.
+
+    """
+
+    querytype = "history"
+
+
+class GroupedJobsBaseResource(Resource):
+    """Base class for endpoints for accessing current and historical job
+    information, grouped by an attribute. This class must be overridden
+    to specify `querytype`.
+
+    """
+
+    querytype = ""
+
+    def grouped_query_multi(
+        self, schedd, groupby, clusterid=None, constraint="true", projection=None
+    ):
+        # type: (Optional[str], str, int, str, str) -> Dict[str, List[Dict]]
+        """Return multiple jobs grouped by `groupby`, optionally constraining
+        by `clusterid` in addition to `constraint`.
+
+        Jobs where the `groupby` attribute is undefined are omitted from
+        the result.
+
+        """
+        if not utils.validate_attribute(groupby):
+            abort(400, message=BAD_GROUPBY)
+        if clusterid is not None:
+            constraint += " && clusterid==%d" % clusterid
+        if projection:
+            projection += "," + groupby
+        ad_dicts = _query_common(self.querytype, schedd, constraint, projection)
+
+        projection_list = projection.lower().split(",") if projection else None
+        grouped_data = defaultdict(list)
+        groupby = groupby.lower()
+        for ad in ad_dicts:
+            jobid = "%(clusterid)s.%(procid)s" % ad
+            if projection_list:
+                for key in "clusterid", "procid":
+                    if key not in projection_list and key != groupby:
+                        del ad[key]
+
+            key = ad.get(groupby, None)
+            if key is not None:
+                grouped_data[key].append(dict(classad=ad, jobid=jobid))
+
+        return grouped_data
+
+    def get(self, schedd, groupby, clusterid=None):
+        parser = reqparse.RequestParser(trim=True)
+        parser.add_argument("projection", default="")
+        parser.add_argument("constraint", default="true")
+        args = parser.parse_args()
+
+        aa = allowed_access()
+        is_admin = aa.get('is_admin',False)
+        if is_admin is not True:
+            return aa
+
+
+        try:
+            schedd = six.ensure_str(schedd, errors="replace")
+            groupby = six.ensure_str(groupby, errors="replace")
+            projection = six.ensure_str(args.projection, errors="replace")
+            constraint = six.ensure_str(args.constraint, errors="replace")
+        except UnicodeError as err:
+            abort(400, message=str(err))
+            return  # quiet warning
+        if schedd == "DEFAULT":
+            schedd = None
+        return filter_classads(self.grouped_query_multi(
+            schedd, groupby, clusterid, constraint=constraint, projection=projection
+        ))
+
+
+class V1GroupedJobsResource(GroupedJobsBaseResource):
+    """Endpoints for accessing grouped information about jobs in the queue; implements
+    the /v1/grouped_jobs endpoints.
+
+    """
+
+    querytype = "xquery"
+
+
+class V1GroupedHistoryResource(GroupedJobsBaseResource):
+    """Endpoints for accessing grouped_historical job information; implements the
+    /v1/grouped_history endpoints.
 
     """
 

@@ -1,0 +1,11 @@
+RELEASE NOTES
+* Added Flask Cors (https://flask-cors.readthedocs.io/en/latest/api.html#using-cors-with-cookies)
+* Added Group Endpoints
+* Generated yaml for spec and added v1/ endpoint for documentation
+
+
+* __version__ = "0.191001" + 1
+* Added authentication to check for the headers 'Authorization' or 'Authentication'
+* Added authentication to check for cookies
+* You must be an ee2_admin via ee2.is_admin
+* Removed filter for environmental variables which may contain sensitive info
